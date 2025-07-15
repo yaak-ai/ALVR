@@ -19,7 +19,7 @@ use alvr_common::{
     Pose, ViewParams, error,
     parking_lot::{Mutex, RwLock},
     settings_schema::Switch,
-    warn,
+    warn,info
 };
 use alvr_filesystem as afs;
 use alvr_packets::{ButtonValue, Haptics};
@@ -277,6 +277,10 @@ fn event_loop(events_receiver: mpsc::Receiver<ServerCoreEvent>) {
                     }
 
                     unsafe { ShutdownSteamvr() };
+                }
+                ServerCoreEvent::UserPresence(is_user_present) => {
+                    info!("ServerCoreEvent::UserPresence: {is_user_present}");
+                    unsafe { SetUserPresence(is_user_present) }
                 }
             }
         }

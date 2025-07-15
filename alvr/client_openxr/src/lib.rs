@@ -162,6 +162,7 @@ pub fn entry_point() {
     assert!(available_extensions.khr_opengl_es_enable);
 
     let mut exts = xr::ExtensionSet::default();
+    exts.ext_user_presence = available_extensions.ext_user_presence;
     exts.bd_controller_interaction = available_extensions.bd_controller_interaction;
     exts.ext_eye_gaze_interaction = available_extensions.ext_eye_gaze_interaction;
     exts.ext_hand_tracking = available_extensions.ext_hand_tracking;
@@ -183,7 +184,7 @@ pub fn entry_point() {
     #[cfg(target_os = "android")]
     {
         exts.khr_android_create_instance = true;
-    }
+    }    
     exts.khr_convert_timespec_time = true;
     exts.khr_opengl_es_enable = true;
     exts.other = available_extensions
@@ -235,6 +236,12 @@ pub fn entry_point() {
 
         let (xr_session, mut xr_frame_waiter, mut xr_frame_stream) =
             create_session(&xr_instance, xr_system, &graphics_context);
+
+        if extra_extensions::supports_user_presence(&xr_session, xr_system) {
+            alvr_common::info!("user presence supported");
+        } else {
+            alvr_common::info!("user presence NOT supported");
+        }
 
         let views_config = xr_instance
             .enumerate_view_configuration_views(
@@ -377,6 +384,11 @@ pub fn entry_point() {
                     xr::Event::InteractionProfileChanged(_)
                     | xr::Event::PassthroughStateChangedFB(_) => {
                         // todo
+                    }
+                    xr::Event::UserPresenceChangedEXT(event) => {
+                        alvr_common::info!("user present: {:?}", event.is_user_present());
+
+                        core_context.update_user_presence(event.is_user_present());
                     }
                     _ => (),
                 }

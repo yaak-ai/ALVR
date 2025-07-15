@@ -232,6 +232,12 @@ impl ClientCoreContext {
         }
     }
 
+    pub fn update_user_presence(&self, user_is_present: bool) {
+        if let Some(sender) = &mut *self.connection_context.control_sender.lock() {
+            sender.send(&ClientControlPacket::UserPresence(user_is_present)).ok();
+        }
+    }
+
     pub fn get_total_prediction_offset(&self) -> Duration {
         dbg_client_core!("get_total_prediction_offset");
 

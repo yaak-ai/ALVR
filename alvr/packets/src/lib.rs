@@ -204,6 +204,7 @@ pub enum ClientControlPacket {
     Log { level: LogSeverity, message: String },
     Reserved(String),
     ReservedBuffer(Vec<u8>),
+    UserPresence(bool),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
