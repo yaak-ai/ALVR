@@ -232,7 +232,9 @@ impl ClientCoreContext {
         }
     }
 
-    pub fn update_user_presence(&self, user_is_present: bool) {
+    pub fn send_user_presence(&self, user_is_present: bool) {
+        dbg_client_core!("send_user_presence");
+
         if let Some(sender) = &mut *self.connection_context.control_sender.lock() {
             sender.send(&ClientControlPacket::UserPresence(user_is_present)).ok();
         }

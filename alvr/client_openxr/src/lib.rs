@@ -327,6 +327,7 @@ pub fn entry_point() {
         let mut passthrough_layer = None;
 
         let mut event_storage = xr::EventDataBuffer::new();
+        let mut user_is_present = true;
         'render_loop: loop {
             while let Some(event) = xr_instance.poll_event(&mut event_storage).unwrap() {
                 match event {
@@ -387,8 +388,9 @@ pub fn entry_point() {
                     }
                     xr::Event::UserPresenceChangedEXT(event) => {
                         alvr_common::info!("user present: {:?}", event.is_user_present());
+                        user_is_present = event.is_user_present();
 
-                        core_context.update_user_presence(event.is_user_present());
+                        core_context.send_user_presence(event.is_user_present());
                     }
                     _ => (),
                 }
@@ -422,6 +424,8 @@ pub fn entry_point() {
                         }
 
                         stream_context = Some(context);
+
+                        core_context.send_user_presence(user_is_present);
                     }
                     ClientCoreEvent::StreamingStopped => {
                         if passthrough_layer.is_none() {
