@@ -262,7 +262,7 @@ pub fn handshake_loop(ctx: Arc<ConnectionContext>, lifecycle_state: Arc<RwLock<L
             })
         {
             // Make sure the wired connection is created once and kept alive
-            let wired_connection = if let Some(connection) = &wired_connection {
+            let wired_connection = if let Some(connection) = &mut wired_connection {
                 connection
             } else {
                 let connection = match WiredConnection::new(
@@ -285,7 +285,7 @@ pub fn handshake_loop(ctx: Arc<ConnectionContext>, lifecycle_state: Arc<RwLock<L
 
                 wired_connection = Some(connection);
 
-                wired_connection.as_ref().unwrap()
+                wired_connection.as_mut().unwrap()
             };
 
             let stream_port;
@@ -315,7 +315,7 @@ pub fn handshake_loop(ctx: Arc<ConnectionContext>, lifecycle_state: Arc<RwLock<L
 
             #[cfg_attr(not(debug_assertions), expect(unused_variables))]
             if let WiredConnectionStatus::NotReady(s) = status {
-                dbg_connection!("handshake_loop: Wired connection not ready: {s}");
+                info!("handshake_loop: Wired connection not ready: {s}");
                 thread::sleep(RETRY_CONNECT_MIN_INTERVAL);
                 continue;
             }
