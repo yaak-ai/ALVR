@@ -291,12 +291,14 @@ pub fn handshake_loop(ctx: Arc<ConnectionContext>, lifecycle_state: Arc<RwLock<L
             let stream_port;
             let client_type;
             let client_autolaunch;
+            let client_autoinstall;
             {
                 let session_manager_lock = SESSION_MANAGER.read();
                 let connection = &session_manager_lock.settings().connection;
                 stream_port = connection.stream_port;
                 client_type = connection.wired_client_type.clone();
                 client_autolaunch = connection.wired_client_autolaunch;
+                client_autoinstall = connection.wired_client_autoinstall.as_option().cloned();
             }
 
             let status = match wired_connection.setup(
@@ -304,6 +306,8 @@ pub fn handshake_loop(ctx: Arc<ConnectionContext>, lifecycle_state: Arc<RwLock<L
                 stream_port,
                 &client_type,
                 client_autolaunch,
+                FILESYSTEM_LAYOUT.get().unwrap(),
+                client_autoinstall,
             ) {
                 Ok(status) => status,
                 Err(e) => {

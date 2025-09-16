@@ -1309,6 +1309,19 @@ pub enum SocketBufferSize {
 }
 
 #[derive(SettingsSchema, Serialize, Deserialize, Clone)]
+pub struct WiredClientAutoInstallConfig {
+    #[schema(strings(
+        help = "Path to the client package to install."
+    ))]
+    pub client_package_location: String,
+
+    #[schema(strings(
+        help = "Permissions to grant to an installed package."
+    ))]
+    pub permissions: Vec<String>,
+}
+
+#[derive(SettingsSchema, Serialize, Deserialize, Clone)]
 pub struct ConnectionConfig {
     #[schema(strings(
         help = r#"UDP: Faster, but less stable than TCP. Try this if your network is well optimized and free of interference.
@@ -1327,6 +1340,11 @@ TCP: Slower than UDP, but more stable. Pick this if you experience video or audi
         help = r#"Wether ALVR should try to automatically launch the client when establishing a wired connection."#
     ))]
     pub wired_client_autolaunch: bool,
+
+    #[schema(strings(
+        help = r#"Wether ALVR should try to automatically install the client when establishing a wired connection."#
+    ))]
+    pub wired_client_autoinstall: Switch<WiredClientAutoInstallConfig>,
 
     #[cfg_attr(
         windows,
@@ -2062,6 +2080,17 @@ pub fn session_settings_default() -> SettingsDefault {
                 },
             },
             wired_client_autolaunch: true,
+            wired_client_autoinstall: SwitchDefault {
+                enabled: false,
+                content: WiredClientAutoInstallConfigDefault { 
+                    client_package_location: String::new(),
+                    permissions: VectorDefault {
+                        gui_collapsed: true,
+                        element: String::new(),
+                        content: vec![],
+                    },
+                }
+            },
             web_server_port: 8082,
             stream_port: 9944,
             osc_local_port: 9942,

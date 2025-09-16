@@ -2,7 +2,7 @@
 
 use crate::parse::{self, Device, ForwardedPorts};
 use alvr_filesystem as afs;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Ok, Result};
 use std::{
     collections::HashSet,
     io::{Cursor, Read},
@@ -255,6 +255,67 @@ pub fn list_installed_packages(adb_path: &str, device_serial: &str) -> Result<Ha
     let packages = text.lines().map(|l| l.replace("package:", "")).collect();
 
     Ok(packages)
+}
+
+pub fn get_package_path(
+    adb_path: &str,
+    device_serial: &str,
+    application_id: &str,
+) -> Result<Option<String>> {
+    let output = get_command(
+        adb_path,
+        &["-s", device_serial, "shell", "pm", "path", application_id],
+    )
+    .output()
+    .context("Failed to run client packge path adb command")?;
+
+    let text = String::from_utf8_lossy(&output.stdout);
+
+    match text.strip_prefix("package:") {
+        Some(package_path) => Ok(Some(package_path.trim().to_owned())),
+        None => Ok(None)
+    }
+}
+
+pub fn get_package_sha1(
+    adb_path: &str,
+    device_serial: &str,
+    application_id: &str,
+) -> Result<Option<String>> {
+
+    let package_path = get_package_path(adb_path, device_serial, application_id)?;
+
+    let Some(package_path) = package_path else {
+        return Ok(None);
+    };
+        
+    let output = get_command(
+        adb_path,
+        &["-s", device_serial, "shell", "sha1sum", "-b ", &package_path],
+    )
+    .output()
+    .context("Failed get sha1 hash of installed package")?;
+
+    let sha1_hash = String::from_utf8_lossy(&output.stdout);
+
+    Ok(Some(sha1_hash.trim().to_owned()))
+}
+
+pub fn grant_package_permission(
+    adb_path: &str,
+    device_serial: &str,
+    application_id: &str,
+    permission: &str,
+) -> Result<()> {
+
+    get_command(
+        adb_path,
+        &["-s", device_serial, "shell", "pm", "grant", application_id, permission],
+    )
+    .output()
+    .context("Failed get sha1 hash of installed package")?;
+
+    Ok(())
 }
 
 ////////
