@@ -3,7 +3,7 @@ mod parse;
 
 use alvr_common::anyhow::Result;
 use alvr_common::{dbg_connection, error};
-use alvr_session::WiredClientAutoInstallConfig;
+use alvr_session::{WiredClientAutoInstallConfig, WiredClientAutoLaunchConfig};
 use alvr_system_info::{
     ClientFlavor, PACKAGE_NAME_GITHUB_DEV, PACKAGE_NAME_GITHUB_STABLE, PACKAGE_NAME_STORE,
 };
@@ -21,9 +21,8 @@ pub enum WiredConnectionStatus {
 }
 
 pub struct WiredConnection {
-    adb_path: String,
-    initial_autolaunch_delay: Option<Instant>,
-    post_autolaunch_delay: Option<Instant>
+    adb_path: String,    
+    autolaunch_time: Option<Instant>
 }
 
 impl WiredConnection {
@@ -33,7 +32,7 @@ impl WiredConnection {
     ) -> Result<Self> {
         let adb_path = commands::require_adb(layout, download_progress_callback)?;
 
-        Ok(Self { adb_path, initial_autolaunch_delay: None, post_autolaunch_delay: None })
+        Ok(Self { adb_path, autolaunch_time: None })
     }
 
     pub fn setup(
@@ -41,30 +40,20 @@ impl WiredConnection {
         control_port: u16,
         stream_port: u16,
         client_type: &ClientFlavor,
-        client_autolaunch: bool,
+        client_autolaunch: Option<WiredClientAutoLaunchConfig>,
         layout: &alvr_filesystem::Layout,
-        client_autoinstall_path: Option<WiredClientAutoInstallConfig>,
+        client_autoinstall: Option<WiredClientAutoInstallConfig>,
     ) -> Result<WiredConnectionStatus> {
         let Some(device_serial) = commands::list_devices(&self.adb_path)?
             .into_iter()
             .filter_map(|d| d.serial)
             .find(|s| !s.starts_with("127.0.0.1"))
         else {
-            self.initial_autolaunch_delay = None;
-            self.post_autolaunch_delay = None;
+            self.autolaunch_time = None;
             return Ok(WiredConnectionStatus::NotReady(
                 "No wired devices found".to_owned(),
             ));
         };
-
-        let initial_autolaunch_delay = match self.initial_autolaunch_delay {
-            Some(t) => t,
-            None => {
-                let t = Instant::now();
-                self.initial_autolaunch_delay = Some( t ); // Start pre auto launch delay as soon as there is an adb connection
-                t
-            }
-        };        
 
         let ports = HashSet::from([control_port, stream_port]);
         let forwarded_ports: HashSet<u16> =
@@ -82,7 +71,7 @@ impl WiredConnection {
 
         let application_ids = get_application_ids(client_type);
 
-        if let Some(client_autoinstall) = client_autoinstall_path {            
+        if let Some(client_autoinstall) = client_autoinstall {
             let mut client_autoinstall_path = PathBuf::from_str(&client_autoinstall.client_package_location)?;
 
             if client_autoinstall_path.is_relative() {
@@ -144,15 +133,25 @@ impl WiredConnection {
         };
 
         if commands::get_process_id(&self.adb_path, &device_serial, &process_name)?.is_none() {
-            if client_autolaunch && self.post_autolaunch_delay.is_none() {
-                if initial_autolaunch_delay.elapsed() < Duration::from_secs(15) {
-                    return Ok(WiredConnectionStatus::NotReady(
-                        "Awaiting pre autolaunch delay".to_owned(),
-                    ));
+            if let Some(client_autolaunch) = client_autolaunch  && self.autolaunch_time.is_none() {
+
+                if client_autolaunch.boot_delay > 0 {
+                    match commands::get_uptime(&self.adb_path, &device_serial) {
+                        Ok(uptime) => {
+                            if uptime < Duration::from_secs(client_autolaunch.boot_delay.into()) {
+                                return Ok(WiredConnectionStatus::NotReady(
+                                    "Waiting for device boot".to_owned(),
+                                ));
+                            }
+                        },
+                        Err(failure) => {
+                            dbg_connection!("wired_connection: get_uptime failed with {}", failure);
+                        }
+                    }
                 }
-                
+
                 commands::start_application(&self.adb_path, &device_serial, &process_name)?;
-                self.post_autolaunch_delay = Some(Instant::now());
+                self.autolaunch_time = Some(Instant::now());
                 
                 Ok(WiredConnectionStatus::NotReady(
                     "Starting ALVR client".to_owned(),
@@ -167,13 +166,13 @@ impl WiredConnection {
                 "ALVR client is paused".to_owned(),
             ))
         } else {
-            if let Some(t) = self.post_autolaunch_delay {
-                if t.elapsed() < Duration::from_secs(5) {
+            if let Some(t) = self.autolaunch_time {
+                if let Some(client_autolaunch) = client_autolaunch && t.elapsed() < Duration::from_millis(client_autolaunch.post_autolaunch_delay.into()) {
                     return Ok(WiredConnectionStatus::NotReady(
                         "Awaiting post autolaunch delay".to_owned(),
                     ));
                 } else {
-                    self.post_autolaunch_delay = None;
+                    self.autolaunch_time = None;
                 }
             }
 

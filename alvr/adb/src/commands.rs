@@ -8,6 +8,7 @@ use std::{
     io::{Cursor, Read},
     process::Command,
     time::Duration,
+    str::FromStr
 };
 use zip::ZipArchive;
 
@@ -294,7 +295,7 @@ pub fn get_package_sha1(
         &["-s", device_serial, "shell", "sha1sum", "-b ", &package_path],
     )
     .output()
-    .context("Failed get sha1 hash of installed package")?;
+    .context("Failed to get sha1 hash of installed package")?;
 
     let sha1_hash = String::from_utf8_lossy(&output.stdout);
 
@@ -308,14 +309,35 @@ pub fn grant_package_permission(
     permission: &str,
 ) -> Result<()> {
 
-    get_command(
+     get_command(
         adb_path,
         &["-s", device_serial, "shell", "pm", "grant", application_id, permission],
     )
     .output()
-    .context("Failed get sha1 hash of installed package")?;
+    .context("Failed to grant package permissions")?;
 
     Ok(())
+}
+
+////////
+// Utility
+pub fn get_uptime(adb_path: &str, device_serial: &str) -> Result<Duration> {
+    let output = get_command(adb_path, &["-s", device_serial, "shell", "cat", "/proc/uptime"],
+    ).output()
+    .context("Failed to get system uptime")?;
+
+    let output_str = String::from_utf8_lossy(&output.stdout);
+
+    let uptime_string = output_str
+    .split_ascii_whitespace()
+    .next()
+    .context("Empty result from /proc/uptime")?;
+
+    let uptime = f64::from_str(uptime_string)
+    .context("Cannot parse uptime into an f64")?;
+
+    Duration::try_from_secs_f64(uptime)
+    .context("Invalid f64 value for a duration ")
 }
 
 ////////

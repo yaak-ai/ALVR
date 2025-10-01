@@ -1322,6 +1322,19 @@ pub struct WiredClientAutoInstallConfig {
 }
 
 #[derive(SettingsSchema, Serialize, Deserialize, Clone)]
+pub struct WiredClientAutoLaunchConfig {
+    #[schema(strings(
+        help = "Delay in seconds to wait after booting the device before trying to launch the client."
+    ))]
+    pub boot_delay: u32,
+
+    #[schema(strings(
+        help = r#"Number of milliseconds to wait after a new client has been launched."#
+    ))]
+    pub post_autolaunch_delay: u32,
+}
+
+#[derive(SettingsSchema, Serialize, Deserialize, Clone)]
 pub struct ConnectionConfig {
     #[schema(strings(
         help = r#"UDP: Faster, but less stable than TCP. Try this if your network is well optimized and free of interference.
@@ -1339,7 +1352,7 @@ TCP: Slower than UDP, but more stable. Pick this if you experience video or audi
     #[schema(strings(
         help = r#"Wether ALVR should try to automatically launch the client when establishing a wired connection."#
     ))]
-    pub wired_client_autolaunch: bool,
+    pub wired_client_autolaunch: Switch<WiredClientAutoLaunchConfig>,
 
     #[schema(strings(
         help = r#"Wether ALVR should try to automatically install the client when establishing a wired connection."#
@@ -2079,7 +2092,13 @@ pub fn session_settings_default() -> SettingsDefault {
                     ClientFlavorDefaultVariant::Github
                 },
             },
-            wired_client_autolaunch: true,
+            wired_client_autolaunch: SwitchDefault {
+                enabled: true,
+                content: WiredClientAutoLaunchConfigDefault {
+                    boot_delay: 0,
+                    post_autolaunch_delay: 0,
+                },
+            },
             wired_client_autoinstall: SwitchDefault {
                 enabled: false,
                 content: WiredClientAutoInstallConfigDefault { 
