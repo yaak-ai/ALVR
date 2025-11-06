@@ -184,6 +184,7 @@ pub fn start_application(adb_path: &str, device_serial: &str, application_id: &s
             "-p",
             application_id,
             "1",
+            ";input keyevent KEYCODE_SLEEP;sleep 1;input keyevent KEYCODE_WAKEUP",
         ],
     )
     .output()
