@@ -180,11 +180,12 @@ pub fn start_application(adb_path: &str, device_serial: &str, application_id: &s
             "-s",
             device_serial,
             "shell",
+            "taskset 0000000F am broadcast -a com.oculus.vrpowermanager.prox_close;sleep 1;", // disabled proximity sensor temporarily
             "monkey",
             "-p",
             application_id,
             "1",
-            ";input keyevent KEYCODE_SLEEP;sleep 1;input keyevent KEYCODE_WAKEUP",
+            ";sleep 4;taskset 0000000F am broadcast -a com.oculus.vrpowermanager.automation_disable", // wait a bit and re-enable the proximity sensor
         ],
     )
     .output()
@@ -419,3 +420,12 @@ pub fn suspend_hmd(adb_path: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn wakeup_hmd(adb_path: &str) -> Result<()> {
+    get_command( adb_path, &["shell", "input keyevent KEYCODE_WAKEUP"])
+    .output()
+    .context(
+        "Failed to wake hmd up"
+    )?;
+
+    Ok(())
+}

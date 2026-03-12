@@ -1304,12 +1304,23 @@ fn connection_pipeline(
                         info!("Received user presence: {is_user_present}");
                         if let Some(adb_path) = &adb_path && !is_user_present {
                             info!("Suspending HMD");
-                            match alvr_adb::commands::suspend_hmd(adb_path) {
-                                Ok(_) => {
-                                    info!("HMD suspended");
-                                },
-                                Err(err) => {
-                                    error!("Failed to suspend HMD: {err} ");
+                            if is_user_present {
+                                match alvr_adb::commands::wakeup_hmd(adb_path) {
+                                    Ok(_) => {
+                                        info!("HMD woken up");
+                                    },
+                                    Err(err) => {
+                                        error!("Failed to swake HMD up: {err} ");
+                                    }
+                                }
+                            } else {
+                                match alvr_adb::commands::suspend_hmd(adb_path) {
+                                    Ok(_) => {
+                                        info!("HMD suspended");
+                                    },
+                                    Err(err) => {
+                                        error!("Failed to suspend HMD: {err} ");
+                                    }
                                 }
                             }
                         }
