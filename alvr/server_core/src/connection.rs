@@ -1130,6 +1130,7 @@ fn connection_pipeline(
         let client_hostname = client_hostname.clone();
         move || {
             let mut disconnection_deadline = Instant::now() + KEEPALIVE_TIMEOUT;
+            let adb_path = alvr_adb::commands::get_adb_path(FILESYSTEM_LAYOUT.get().unwrap());
             while is_streaming(&client_hostname) {
                 let packet = match control_receiver.recv(STREAMING_RECV_TIMEOUT) {
                     Ok(packet) => packet,
@@ -1301,6 +1302,17 @@ fn connection_pipeline(
                     }
                     ClientControlPacket::UserPresence(is_user_present) => {
                         info!("Received user presence: {is_user_present}");
+                        if let Some(adb_path) = &adb_path && !is_user_present {
+                            info!("Suspending HMD");
+                            match alvr_adb::commands::suspend_hmd(adb_path) {
+                                Ok(_) => {
+                                    info!("HMD suspended");
+                                },
+                                Err(err) => {
+                                    error!("Failed to suspend HMD: {err} ");
+                                }
+                            }
+                        }
                         ctx.events_sender.send(ServerCoreEvent::UserPresence(is_user_present)).ok();
                     }
                     _ => (),

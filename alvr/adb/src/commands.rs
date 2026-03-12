@@ -408,3 +408,14 @@ pub fn kill_server(adb_path: &str) -> Result<()> {
 
     Ok(())
 }
+
+pub fn suspend_hmd(adb_path: &str) -> Result<()> {
+    get_command( adb_path, &["shell", "input keyevent KEYCODE_SLEEP"])
+    .output()
+    .context(
+        "Failed to suspend hmd"
+    )?;
+
+    Ok(())
+}
+
